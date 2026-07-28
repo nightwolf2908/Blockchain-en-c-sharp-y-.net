@@ -48,7 +48,47 @@ class Program
             {
                 Console.WriteLine($"[Error Mempool] La transacción fue rechazada por el sistema: {ex.Message}");
             }
+
+            Console.WriteLine($"   [Minando] Ejecutando MinePendingTransactions...");
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            blockchain.MinePendingTransactions(minerAddress);
+            watch.Stop();
+
+            Block latestBlock = blockchain.GetLatestBlock();
+            Console.WriteLine($"   [Resultado] Bloque #{latestBlock.Index} cerrado.");
+            Console.WriteLine($"      -> Dificultad Histórica: {latestBlock.BlockDifficulty} ceros.");
+            Console.WriteLine($"      -> Tiempo registrado: {latestBlock.MiningDurationSecond}s.");
+
+            Console.Write($"   [Validación IsValid] Verificando estado criptográfico... ");
+            if (blockchain.IsValid())
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Cadena de bloques válida.");
+                Console.ResetColor();
+
+                Console.WriteLine("   [Persistencia] Guardando estado actual en blockchain.json...");
+                blockchain.SaveToFile();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Cadena de bloques inválida.");
+                Console.ResetColor();
+            }
+
+            if(i>=3 && i <= 5)
+            {
+                Console.WriteLine("   [Simulación] Forzando retraso de hardware de 3 segundos...");
+                Thread.Sleep(3000);
+            }
+            else
+            {
+                Thread.Sleep(100);
+            }
+            Console.WriteLine();
+
         }
+        
         
         
         }    

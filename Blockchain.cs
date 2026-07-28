@@ -146,11 +146,22 @@ public class Blockchain
 
     public void SaveToFile()
     {
-        var options = new JsonSerializerOptions {WriteIndented = true};
-        string jsonString = JsonSerializer.Serialize(Chain, options);
-        File.WriteAllText(FilePath, jsonString);
+        try
+        {
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNameCaseInsensitive = true
+            };
 
-        Console.WriteLine($"\n[SISTEMA]: Blockchain guardada exitosamente en '{FilePath}'.");
+            string jsonString = JsonSerializer.Serialize(this.Chain, options);
+            System.IO.File.WriteAllText("blockchain.json", jsonString);
+            Console.WriteLine("[SISTEMA]: Blockchain guardada exitosamente en 'blockchain.json'.");
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine($"[ERROR AL GUARDAR]: {ex.Message}");
+        }
     }
 
     public static Blockchain LoadFromFile()
