@@ -1,6 +1,8 @@
-﻿using System;
+﻿#nullable disable
+using System;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 
 public class Block
 {
@@ -12,6 +14,11 @@ public class Block
     public int Nonce { get; set; }
     public long MiningDurationSecond {get;set;}
     public int BlockDifficulty {get; set;}
+
+    [JsonConstructor]
+    public Block()
+    {
+    }
 
     public Block(int index, DateTime timestamp, List<Transaction> transactions, string previousHash="",int currentDifficulty=2)
     {
@@ -55,3 +62,7 @@ public class Block
         Console.WriteLine($"!Bloque minado¡ Hash: {Hash}");
     }
 }
+
+
+
+#nullable enable

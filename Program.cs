@@ -12,6 +12,11 @@ class Program
         Console.WriteLine("==================================================\n");
 
         Blockchain blockchain = new Blockchain();
+
+        blockchain.LoadFromFile();
+
+        Console.WriteLine($"\n[Estado de Red] Altura actual de la cadena: {blockchain.Chain.Count} bloques.");
+        Console.WriteLine($"[Estado de Red] Dificultad activa: {blockchain.Difficulty}\n");
         
         using ECDsa minerKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         using ECDsa userKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);

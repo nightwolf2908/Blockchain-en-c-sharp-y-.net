@@ -164,41 +164,57 @@ public class Blockchain
         }
     }
 
-    public static Blockchain LoadFromFile()
+    public void LoadFromFile()
     {
-        if (!File.Exists(FilePath))
+        string filePath = "blockchain.json";
+        if (!File.Exists(filePath))
         {
-            Console.WriteLine($"\n[SISTEMA]: No se encontró el archivo '{FilePath}'. Se creará una nueva blockchain.");
-            return new Blockchain();
+            Console.WriteLine("[SISTEMA]: No se encontró el archivo 'blockchain.json'. Se iniciará una nueva cadena de bloques.");
+            this.Chain = new List<Block>();
+            var genesisTransactions = new List<Transaction>();
+            Block genesisBlock = new Block(0, DateTime.Now, genesisTransactions, "0", this.Difficulty);
+            genesisBlock.MineBlock(this.Difficulty);
+            this.Chain.Add(genesisBlock);
+            this.SaveToFile();
+            return;
         }
         try
         {
-            Console.WriteLine("\n[SISTEMA]: Archivo detectado. Cargando historial de bloques...");
-            string jsonString = File.ReadAllText(FilePath);
-
-            List<Block> loadedChain = JsonSerializer.Deserialize<List<Block>>(jsonString) ?? new List<Block>();
-            if(loadedChain.Count == 0)
+            Console.WriteLine("[Persistencia] Cargando el historial de bloques desde disco...");
+            string jsonString = File.ReadAllText(filePath);
+            var options = new JsonSerializerOptions
             {
-                Console.WriteLine("[SISTEMA]: El archivo está vacío. Iniciando con una blockchain limpia.");
-                return new Blockchain();
-            }
-            Blockchain blockchain = new Blockchain();
-
-            blockchain.Chain = loadedChain;
-
-            if (!blockchain.IsValid())
+                PropertyNameCaseInsensitive = true
+            };
+            var loadedChain = JsonSerializer.Deserialize<List<Block>>(jsonString, options);
+            if (loadedChain != null && loadedChain.Count > 0)
             {
-                throw new InvalidOperationException("[ALERTA]: La blockchain ha sido alterada.");
-            }
+                this.Chain = loadedChain;
+                Console.Write("[Validación] Ejecutando auditoría exhaustiva de la cadena cargada... ");
+                if (this.IsValid())
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("¡ÉXITO! Historial íntegro, hashes correctos y firmas válidas.");
+                    Console.ResetColor();
 
-            Console.WriteLine("[SISTEMA]: Blockchain cargada exitosamente desde el archivo.");
-            return blockchain;
+                    this.Difficulty = this.GetLatestBlock().BlockDifficulty;
+                    Console.WriteLine($"[SISTEMA]: Dificultad ajustada a {this.Difficulty} según el último bloque cargado.");
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("¡ALERTA CRÍTICA! El archivo JSON está corrupto o fue manipulado.");
+                    Console.ResetColor();
+
+                    throw new System.Security.SecurityException("La cadena de bloques cargada no es válida. Se requiere intervención manual.");
+                }
+
+            }
         }
         catch(Exception ex)
         {
-            Console.WriteLine($"[ERROR AL CARGAR]: {ex.Message}");
-            Console.WriteLine("Iniciando con una blockchain limpia por seguridad.");
-            return new Blockchain();
+            Console.WriteLine($"[Error Inicio] Fallo catastrófico al cargar el archivo: {ex.Message}");
+            Environment.Exit(1);
         }
     }
 }
