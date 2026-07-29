@@ -59,6 +59,8 @@ class AuthService
 
     static void RegistrarMenu()
     {
+        CodigoOTP codigoOTP = new CodigoOTP();
+
         Console.Clear();
         Console.WriteLine("--- REGISTRO DE NUEVO USUARIO ---");
         Console.Write("Introduce tu correo: ");
@@ -90,9 +92,45 @@ class AuthService
         Console.WriteLine("\n¡Correo y contraseña válidos en formato!");
         Console.ResetColor();
 
-        // Aquí es donde dispararemos el código de 5 minutos en el Paso 2
-        Console.WriteLine("Presiona una tecla para continuar...");
-        Console.ReadKey();
+        string codigoToken = codigoOTP.GenerarCodigoVerificacion();
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("\n[Procesando] Enviando código de verificación real a tu correo Gmail...");
+        Console.ResetColor();
+
+        bool envioExitoso = codigoOTP.EnviarCorreoReal(email, codigoToken).GetAwaiter().GetResult();
+        if(!envioExitoso)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\nError al enviar el correo de verificación. Presiona cualquier tecla para volver...");
+            Console.ReadKey();
+            Console.ResetColor();
+            return;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"[Éxito] El código fue enviado a {email}. Revisa tu bandeja de entrada o Spam.");
+        Console.ResetColor();
+
+        Console.Write("\nIntroduce el código de 6 dígitos recibido: ");
+        string codigoIntroducido = Console.ReadLine();
+
+        if(codigoOTP.validarCodigo(codigoIntroducido))
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("\n¡Registro exitoso! Presiona cualquier tecla para continuar...");
+            Console.ReadKey();
+            Console.ResetColor();
+
+            // TODO: En el siguiente paso guardaremos de forma permanente en Docker
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\nRegistro fallido. Presiona cualquier tecla para volver...");
+            Console.ReadKey();
+            Console.ResetColor();
+        }
 
         static bool EsCorreoValido(string correo)
         {
