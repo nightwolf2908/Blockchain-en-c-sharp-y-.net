@@ -5,8 +5,8 @@ using System.Text.Json;
 
 public class Blockchain
 {
-    public List<Block> Chain {get; private set;}
-    public List<Transaction> PendingTransactions {get; private set;}
+    public List<Block> Chain {get; set;}
+    public List<Transaction> PendingTransactions {get; set;}
     public int Difficulty {get; set;} = 2;
     public decimal MiningReward {get; set;} = 10;
     private const int DifficultyAdjustmentInterval = 5;
@@ -46,7 +46,7 @@ public class Blockchain
         Console.WriteLine($"Transacción aceptada en el Mempool.");
     }
 
-    public void MinePendingTransactions(string minerAddress)
+    public async Task MinePendingTransactions(string minerAddress, P2PServer p2pserver)
     {
         
 
@@ -66,6 +66,9 @@ public class Blockchain
 
         Console.WriteLine($"Recompensa de minado: {MiningReward} enviada a {minerAddress}");
         PendingTransactions.Add(new Transaction("Sistema", minerAddress, MiningReward));
+
+        var message = System.Text.Json.JsonSerializer.Serialize(new {Type="RESPONSE_CHAIN", Data=this});
+        await p2pserver.Broadcast(message);
     }
 
     private void AdjustDifficulty()
