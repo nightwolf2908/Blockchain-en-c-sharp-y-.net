@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Blockchain Dashboard</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; background: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .block-list { display: flex; gap: 15px; overflow-x: auto; padding: 10px 0; }
+        .block-card { background: #333; color: white; padding: 15px; border-radius: 6px; min-width: 250px; }
+    </style>
+</head>
+<body>
+    <h1>Blockchain Dashboard</h1>
+    <div class="card">
+        <h2>Bloques en cadena</h2>
+        <button onclick="loadBlockchain">Actualizar cadena</button>
+        <div id="blockchainView" class="block-list">Cargando bloques...</div>
+    </div>
+
+    <div class="card">
+        <h2>Crear Transacción</h2>
+        <input type="text" id="fromAddress" placeholder="Dirección Origen">
+        <input type="text" id="toAddress" placeholder="Dirección Destino">
+        <input type="number" id="amount" placeholder="Cantidad">
+        <button onclick="sendTransaction()">Enviar</button>
+    </div>
+
+    <div class="card">
+        <h2>Minar Transacciones Pendientes</h2>
+        <input type="text" id="minerAddress" placeholder="Dirección del Minero">
+        <button onclick="mineBlock()">Empezar a Minar</button>
+    </div>
+
+    <script src="app.js"></script>
+
+    
+</body>
+</html>

@@ -2,7 +2,21 @@ using System;
 using System.Security.Cryptography;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.FileProviders;
 
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton<Blockchain>();
+
+var app = builder.Build();
+
+app.UseStaticFiles();
+app.UseDefaultFiles();
+
+
+
+
+/*
 class Program
 {
     static void Main(string[] args)
@@ -98,3 +112,4 @@ class Program
         
         }    
 }
+*/
