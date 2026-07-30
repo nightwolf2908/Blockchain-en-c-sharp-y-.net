@@ -1,5 +1,6 @@
 using System;
 using System.Text.RegularExpressions;
+using Microsoft.Data.SqlClient;
 
 class AuthService
 {
@@ -123,6 +124,7 @@ class AuthService
             Console.ResetColor();
 
             // TODO: En el siguiente paso guardaremos de forma permanente en Docker
+            bool guardadoExitoso = DatabaseBind.GuardarUsuario(email, CryptoUtils.HashPassword(password));
         }
         else
         {
