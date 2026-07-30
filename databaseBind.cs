@@ -41,6 +41,8 @@ public class DatabaseBind
                             Id INT IDENTITY(1,1) PRIMARY KEY,
                             Email VARCHAR(150) UNIQUE NOT NULL,
                             PasswordHash CHAR(64) NOT NULL,
+                            PublicKey VARCHAR(MAX) NOT NULL,
+                            PrivateKey VARCHAR(MAX) NOT NULL,
                             FechaRegistro DATETIME DEFAULT GETDATE()
                         );
                     END";
@@ -63,14 +65,17 @@ public class DatabaseBind
     {
         try
         {
+            var(publicKey, privateKey) = new WalletService().GenerateWallet();
             using(SqlConnection connection = new SqlConnection(_connectionStringBlockchain))
             {
                 connection.Open();
-                string insertQuery = "INSERT INTO Usuarios (Email, PasswordHash) VALUES (@Email, @PasswordHash)";
+                string insertQuery = "INSERT INTO Usuarios (Email, PasswordHash, PublicKey, PrivateKey) VALUES (@Email, @PasswordHash, @PublicKey, @PrivateKey)";
                 using(SqlCommand command = new SqlCommand(insertQuery, connection))
                 {
                     command.Parameters.AddWithValue("@Email", email.Trim().ToLower());
                     command.Parameters.AddWithValue("@PasswordHash", passwordHash);
+                    command.Parameters.AddWithValue("@PublicKey", publicKey);
+                    command.Parameters.AddWithValue("@PrivateKey", privateKey);
 
                     command.ExecuteNonQuery();
                     return true;
