@@ -2,11 +2,10 @@ using System;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 
-class AuthService
+public class AuthService
 {
     private static string _connectionStringBlockchain = "Server=localhost,1433;Database=BlockchainAuth;User Id=sa;Password=MiContraseñaSegura123!;Encrypt=False;";
-
-    static void Main(string[] args)
+    public void autenticacion()
     {
         bool ejecutando = true;
 
@@ -61,11 +60,14 @@ class AuthService
         if(loginExitoso)
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("\n¡Acceso concedido! Bienvenido al Nodo Blockchain.");
+            Console.WriteLine("\n¡Acceso concedido! Bienvenido al Nodo Blockchain. Presiona cualquier tecla para continuar...");
             Console.ReadKey();
             Console.ResetColor();
 
+            UsuarioSesion usuarioSesion = new UsuarioSesion().ObtenerDatosSesion(email);
             // Aquí puedes agregar la lógica para continuar con el flujo del programa después del inicio de sesión exitoso.
+            PostLoginMenu postLoginMenu = new PostLoginMenu(usuarioSesion, blockchain: new Blockchain());
+            postLoginMenu.Mostrar();
         }
         else
         {
@@ -193,46 +195,4 @@ class AuthService
         return pass;
     }
 
-    public class UsuarioSesion
-    {
-        public string Email { get; set; } = string.Empty;
-        public string PublicKey { get; set; } = string.Empty;
-        public string PrivateKey { get; set; } = string.Empty;
-    }
-
-    public UsuarioSesion? ObtenerDatosSesion(string email)
-    {
-        try
-        {
-            using(SqlConnection connection = new SqlConnection(_connectionStringBlockchain))
-            {
-                connection.Open();
-                string query = "SELECT Email, PublicKey, PrivateKey FROM Usuarios WHERE Email = @Email";
-                
-                using(SqlCommand command = new SqlCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@Email", email.Trim().ToLower());
-                    using(SqlDataReader reader = command.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            return new UsuarioSesion
-                            {
-                                Email = reader["Email"].ToString()!,
-                                PublicKey = reader["PublicKey"].ToString()!,
-                                PrivateKey = reader["PrivateKey"].ToString()!
-                            };
-                        }
-                    }
-                }
-            }
-        }
-        catch(Exception ex)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"\n[Error DB] No se pudo obtener los datos de sesión: {ex.Message}");
-            Console.ResetColor();
-        }
-        return null;
-    }
 }
