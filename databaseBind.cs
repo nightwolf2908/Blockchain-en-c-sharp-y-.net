@@ -59,16 +59,68 @@ public class DatabaseBind
         }
     }
 
-    public bool GuardarUsuario(string email, string passwordHash)
+    public bool GuardarUsuarioEnLaBaseDeDatos(string email, string passwordHash)
     {
         try
         {
-            
+            using(SqlConnection connection = new SqlConnection(_connectionStringBlockchain))
+            {
+                connection.Open();
+                string insertQuery = "INSERT INTO Usuarios (Email, PasswordHash) VALUES (@Email, @PasswordHash)";
+                using(SqlCommand command = new SqlCommand(insertQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@Email", email.Trim().ToLower());
+                    command.Parameters.AddWithValue("@PasswordHash", passwordHash);
+
+                    command.ExecuteNonQuery();
+                    return true;
+                }
+            }
         }
+        catch(SqlException sqlEx) when (sqlEx.Number == 2627)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"\n[Error DB] El usuario con email '{email}' ya existe en la base de datos.");
+            Console.ResetColor();
+            return false;
+        } //codigo de error para llave duplicada
         catch(Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"\n[Error DB] No se pudo guardar el usuario: {ex.Message}");
+            Console.ResetColor();
+            return false;
+        }
+    }
+
+    public bool ValidarLoginEnLaBaseDeDatos(string email, string passwordHash)
+    {
+        try
+        {
+            using(SqlConnection connection = new SqlConnection(_connectionStringBlockchain))
+            {
+                connection.Open();
+                string query = "SELECT PasswordHash FROM Usuarios WHERE Email = @Email";
+                using(SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Email", email.Trim().ToLower());
+
+                    using(SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            string hashGuardado = reader["PasswordHash"].ToString();
+                            return hashGuardado == passwordHash;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+        catch(Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n[Error DB] No se pudo validar el login: {ex.Message}");
             Console.ResetColor();
             return false;
         }

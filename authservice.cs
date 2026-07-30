@@ -50,12 +50,28 @@ class AuthService
         Console.WriteLine("--- INICIO DE SESIÓN ---");
         Console.Write("Correo: ");
         string email = Console.ReadLine();
+        
         Console.Write("Contraseña: ");
         string password = LeerContrasenaOculta();
 
         // TODO: Validar contra la base de datos de Docker más adelante
-        Console.WriteLine("\n[Funcionalidad en desarrollo] Presiona una tecla para volver...");
-        Console.ReadKey();
+        bool loginExitoso = new DatabaseBind().ValidarLoginEnLaBaseDeDatos(email, CryptoUtils.HashPassword(password));
+        if(loginExitoso)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("\n¡Acceso concedido! Bienvenido al Nodo Blockchain.");
+            Console.ReadKey();
+            Console.ResetColor();
+
+            // Aquí puedes agregar la lógica para continuar con el flujo del programa después del inicio de sesión exitoso.
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\nCorreo o contraseña incorrectos. Presiona cualquier tecla para volver...");
+            Console.ReadKey();
+            Console.ResetColor();
+        }
     }
 
     static void RegistrarMenu()
@@ -124,7 +140,7 @@ class AuthService
             Console.ResetColor();
 
             // TODO: En el siguiente paso guardaremos de forma permanente en Docker
-            bool guardadoExitoso = DatabaseBind.GuardarUsuario(email, CryptoUtils.HashPassword(password));
+            bool guardadoExitoso = new DatabaseBind().GuardarUsuarioEnLaBaseDeDatos(email, CryptoUtils.HashPassword(password));
         }
         else
         {
