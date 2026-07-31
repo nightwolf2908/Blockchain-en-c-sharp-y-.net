@@ -55,7 +55,7 @@ public class PostLoginMenu
                     VerEstadoWallet();
                     break;
                 case "2":
-                    EnviarTransaccion();
+                    EnviarTransaccion().GetAwaiter().GetResult();
                     break;
                 case "3":
                     VerBloquesBlockchain();
