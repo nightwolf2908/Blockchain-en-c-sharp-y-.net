@@ -7,6 +7,7 @@ public class UsuarioSesion
         public string PublicKey { get; set; } = string.Empty;
         public string PrivateKey { get; set; } = string.Empty;
 
+
         private readonly string _connectionStringBlockchain = "Server=localhost,1433;Database=BlockchainAuth;User Id=sa;Password=MiContraseñaSegura123!;Encrypt=False;";
 
         public UsuarioSesion? ObtenerDatosSesion(string email)

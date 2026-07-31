@@ -5,6 +5,22 @@ using Microsoft.Data.SqlClient;
 public class AuthService
 {
     private static string _connectionStringBlockchain = "Server=localhost,1433;Database=BlockchainAuth;User Id=sa;Password=MiContraseñaSegura123!;Encrypt=False;";
+    private readonly int _p2pPort;
+    private readonly Blockchain _blockchain;
+    private readonly P2PServer _p2pServer;
+
+    public AuthService(int p2pPort = 5000)
+    {
+        _p2pPort = p2pPort;
+        _blockchain = new Blockchain();
+        _blockchain.LoadFromFile(); // Cargar blockchain existente
+        _p2pServer = new P2PServer(_blockchain);
+    }
+
+    public Blockchain GetBlockchain() => _blockchain;
+    public P2PServer GetP2PServer() => _p2pServer;
+    public int GetP2PPort() => _p2pPort;
+
     public void autenticacion()
     {
         bool ejecutando = true;
@@ -15,6 +31,7 @@ public class AuthService
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("========================================");
             Console.WriteLine("     NODO BLOCKCHAIN - AUTENTICACIÓN     ");
+            Console.WriteLine($"     🌐 P2P: ws://localhost:{_p2pPort}/ws");
             Console.WriteLine("========================================");
             Console.ResetColor();
             Console.WriteLine("1. Iniciar Sesión");
@@ -33,6 +50,7 @@ public class AuthService
                     RegistrarMenu();
                     break;
                 case "3":
+                    _blockchain.SaveToFile();
                     ejecutando = false;
                     break;
                 default:
@@ -44,8 +62,8 @@ public class AuthService
             }
         }
     }
-    // Función para mostrar el menú de inicio de sesión
-    static void IniciarSesionMenu()
+
+    private void IniciarSesionMenu()
     {
         Console.Clear();
         Console.WriteLine("--- INICIO DE SESIÓN ---");
@@ -55,30 +73,32 @@ public class AuthService
         Console.Write("Contraseña: ");
         string password = LeerContrasenaOculta();
 
-        // TODO: Validar contra la base de datos de Docker más adelante
         bool loginExitoso = new DatabaseBind().ValidarLoginEnLaBaseDeDatos(email, CryptoUtils.HashPassword(password));
-        if(loginExitoso)
+        if (loginExitoso)
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("\n¡Acceso concedido! Bienvenido al Nodo Blockchain. Presiona cualquier tecla para continuar...");
+            Console.WriteLine("\n✅ ¡Acceso concedido! Bienvenido al Nodo Blockchain.");
             Console.ReadKey();
             Console.ResetColor();
 
             UsuarioSesion usuarioSesion = new UsuarioSesion().ObtenerDatosSesion(email);
-            // Aquí puedes agregar la lógica para continuar con el flujo del programa después del inicio de sesión exitoso.
-            PostLoginMenu postLoginMenu = new PostLoginMenu(usuarioSesion, blockchain: new Blockchain(), p2pServer: new P2PServer(new Blockchain()));
-            postLoginMenu.Mostrar();
+            if (usuarioSesion != null)
+            {
+                // Pasar la misma instancia de blockchain y p2pserver
+                PostLoginMenu postLoginMenu = new PostLoginMenu(usuarioSesion, _blockchain, _p2pServer);
+                postLoginMenu.Mostrar();
+            }
         }
         else
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("\nCorreo o contraseña incorrectos. Presiona cualquier tecla para volver...");
+            Console.WriteLine("\n❌ Correo o contraseña incorrectos. Presiona cualquier tecla para volver...");
             Console.ReadKey();
             Console.ResetColor();
         }
     }
-    // Función para mostrar el menú de registro
-    static void RegistrarMenu()
+
+    private void RegistrarMenu()
     {
         CodigoOTP codigoOTP = new CodigoOTP();
 
@@ -90,7 +110,7 @@ public class AuthService
         if (!EsCorreoValido(email))
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("Correo inválido. Presiona cualquier tecla para volver...");
+            Console.WriteLine("❌ Correo inválido. Presiona cualquier tecla para volver...");
             Console.ReadKey();
             Console.ResetColor();
             return;
@@ -100,68 +120,73 @@ public class AuthService
         string password = LeerContrasenaOculta();
         Console.Write("\nEscribe de nuevo tu contraseña para confirmar: ");
         string confirmPassword = LeerContrasenaOculta();
-        if(password != confirmPassword)
+        if (password != confirmPassword)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("\nLas contraseñas no coinciden. Presiona cualquier tecla para volver...");
+            Console.WriteLine("\n❌ Las contraseñas no coinciden. Presiona cualquier tecla para volver...");
             Console.ReadKey();
             Console.ResetColor();
             return;
         }
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("\n¡Correo y contraseña válidos en formato!");
+        Console.WriteLine("\n✅ ¡Correo y contraseña válidos en formato!");
         Console.ResetColor();
 
         string codigoToken = codigoOTP.GenerarCodigoVerificacion();
 
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("\n[Procesando] Enviando código de verificación real a tu correo Gmail...");
+        Console.WriteLine("\n[Procesando] Enviando código de verificación a tu correo...");
         Console.ResetColor();
 
         bool envioExitoso = codigoOTP.EnviarCorreoReal(email, codigoToken).GetAwaiter().GetResult();
-        if(!envioExitoso)
+        if (!envioExitoso)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("\nError al enviar el correo de verificación. Presiona cualquier tecla para volver...");
+            Console.WriteLine("\n❌ Error al enviar el correo de verificación.");
             Console.ReadKey();
             Console.ResetColor();
             return;
         }
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"[Éxito] El código fue enviado a {email}. Revisa tu bandeja de entrada o Spam.");
+        Console.WriteLine($"✅ Código enviado a {email}");
         Console.ResetColor();
 
         Console.Write("\nIntroduce el código de 6 dígitos recibido: ");
         string codigoIntroducido = Console.ReadLine();
 
-        if(codigoOTP.validarCodigo(codigoIntroducido))
+        if (codigoOTP.validarCodigo(codigoIntroducido))
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("\n¡Registro exitoso! Presiona cualquier tecla para continuar...");
+            Console.WriteLine("\n✅ ¡Registro exitoso!");
             Console.ReadKey();
             Console.ResetColor();
 
-            // TODO: En el siguiente paso guardaremos de forma permanente en Docker
             bool guardadoExitoso = new DatabaseBind().GuardarUsuarioEnLaBaseDeDatos(email, CryptoUtils.HashPassword(password));
+            if (guardadoExitoso)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("✅ Usuario guardado en la base de datos.");
+                Console.ResetColor();
+            }
         }
         else
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("\nRegistro fallido. Presiona cualquier tecla para volver...");
+            Console.WriteLine("\n❌ Código inválido. Registro fallido.");
             Console.ReadKey();
             Console.ResetColor();
         }
-
-        static bool EsCorreoValido(string correo)
-        {
-            string modeloRegex = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
-            return Regex.IsMatch(correo, modeloRegex);
-        }
     }
 
-    static string LeerContrasenaOculta()
+    private static bool EsCorreoValido(string correo)
+    {
+        string modeloRegex = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+        return Regex.IsMatch(correo, modeloRegex);
+    }
+
+    private static string LeerContrasenaOculta()
     {
         string pass = "";
         ConsoleKeyInfo key;
@@ -170,21 +195,21 @@ public class AuthService
         {
             key = Console.ReadKey(true);
 
-            if(key.Key == ConsoleKey.Enter)
+            if (key.Key == ConsoleKey.Enter)
             {
                 break;
             }
-            if(key.Key == ConsoleKey.Backspace)
+            if (key.Key == ConsoleKey.Backspace)
             {
-                if(pass.Length > 0)
+                if (pass.Length > 0)
                 {
-                    pass = pass.Substring(0,(pass.Length-1));
+                    pass = pass.Substring(0, (pass.Length - 1));
                     Console.Write("\b \b");
                 }
             }
             else
             {
-                if(!char.IsControl(key.KeyChar))
+                if (!char.IsControl(key.KeyChar))
                 {
                     pass += key.KeyChar;
                     Console.Write("*");
@@ -194,5 +219,4 @@ public class AuthService
         Console.WriteLine();
         return pass;
     }
-
 }

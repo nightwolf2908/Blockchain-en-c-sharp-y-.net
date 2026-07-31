@@ -29,7 +29,7 @@ public class Transaction
     {
         if(Sender == "Sistema") return;
 
-        string publicKey = Convert.ToHexString(privateKey.ExportSubjectPublicKeyInfo());
+        string publicKey = Convert.ToBase64String(privateKey.ExportSubjectPublicKeyInfo());
 
         if(publicKey != Sender)
         {
@@ -49,7 +49,7 @@ public class Transaction
         {
             using(ECDsa publicKey = ECDsa.Create())
             {
-                publicKey.ImportSubjectPublicKeyInfo(Convert.FromHexString(Sender), out _);
+                publicKey.ImportSubjectPublicKeyInfo(Convert.FromBase64String(Sender), out _);
                 byte[] txHash = CalculateHash();
                 return publicKey.VerifyHash(txHash, Signature);
             }

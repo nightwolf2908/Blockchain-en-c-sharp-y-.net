@@ -1,0 +1,16 @@
+{
+  "Chain": [
+    {
+      "Index": 0,
+      "Timestamp": "2026-07-31T12:24:08.1757031-06:00",
+      "PreviousHash": "0",
+      "Hash": "0000625e1356e29bc677c470f5a86e94d51b851f88b06713359c849b92781d70",
+      "Transactions": [],
+      "Nonce": 151852,
+      "MiningDurationSecond": 1,
+      "BlockDifficulty": 4
+    }
+  ],
+  "PendingTransactions": [],
+  "Difficulty": 4
+}

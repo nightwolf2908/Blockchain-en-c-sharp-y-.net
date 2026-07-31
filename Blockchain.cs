@@ -1,26 +1,29 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 public class Blockchain
 {
-    public List<Block> Chain {get; set;}
-    public List<Transaction> PendingTransactions {get; set;}
-    public int Difficulty {get; set;} = 4;
-    public decimal MiningReward {get; set;} = 10;
+    public List<Block> Chain { get; set; }
+    public List<Transaction> PendingTransactions { get; set; }
+    public int Difficulty { get; set; } = 4;
+    public decimal MiningReward { get; set; } = 10;
     private const int DifficultyAdjustmentInterval = 5;
     private const int TargetTimePerBlockSeconds = 10;
     private const int TargetTimespan = DifficultyAdjustmentInterval * TargetTimePerBlockSeconds;
+    private const string FilePath = "blockchain_data.json";
+    private static readonly object _fileLock = new object();
 
     public Blockchain()
     {
         Chain = new List<Block>();
         PendingTransactions = new List<Transaction>();
-        Chain.Add(new Block(0, DateTime.Now, new List<Transaction>(), "0"));
+        Chain.Add(new Block(0, DateTime.Now, new List<Transaction>(), "0", Difficulty));
     }
-
-    
 
     public Block GetLatestBlock()
     {
@@ -34,55 +37,79 @@ public class Blockchain
             throw new InvalidOperationException("Transacción rechazada: Firma digital inválida.");
         }
 
-        if(transaction.Sender != "Sistema")
+        if (transaction.Sender != "Sistema")
         {
             decimal balance = GetBalance(transaction.Sender);
-            if(balance < transaction.Amount)
+            if (balance < transaction.Amount)
             {
                 throw new InvalidOperationException("Transacción rechazada: Fondos insuficientes.");
             }
         }
         PendingTransactions.Add(transaction);
-        Console.WriteLine($"Transacción aceptada en el Mempool.");
+        Console.WriteLine($"✅ Transacción aceptada en el Mempool.");
     }
 
     public async Task MinePendingTransactions(string minerAddress, P2PServer p2pserver)
     {
+        if (PendingTransactions.Count == 0)
+        {
+            Console.WriteLine("⚠️ No hay transacciones pendientes para minar.");
+            return;
+        }
+
+        Console.WriteLine($"\n⛏️ Iniciando minado de un nuevo bloque con {PendingTransactions.Count} transacciones...");
+
+        Block newBlock = new Block(
+            Chain.Count,
+            DateTime.Now,
+            new List<Transaction>(PendingTransactions),
+            GetLatestBlock().Hash,
+            Difficulty
+        );
         
-
-        Console.WriteLine($"\nIniciando minado de un nuevo bloque con {PendingTransactions.Count} transacciones...");
-
-        Block newBlock = new Block(Chain.Count,DateTime.Now, new List<Transaction>(PendingTransactions), GetLatestBlock().Hash, Difficulty);
         newBlock.MineBlock(Difficulty);
         Chain.Add(newBlock);
 
-        if(Chain.Count % DifficultyAdjustmentInterval == 0)
+        if (Chain.Count % DifficultyAdjustmentInterval == 0)
         {
             AdjustDifficulty();
         }
 
         PendingTransactions.Clear();
-        Console.WriteLine("Bloque minado y agregado a la cadena de bloques.");
+        Console.WriteLine($"✅ Bloque {newBlock.Index} minado y agregado a la cadena.");
 
-        Console.WriteLine($"Recompensa de minado: {MiningReward} enviada a {minerAddress}");
-        PendingTransactions.Add(new Transaction("Sistema", minerAddress, MiningReward));
+        // Agregar recompensa
+        Console.WriteLine($"💰 Recompensa de minado: {MiningReward} enviada a {minerAddress}");
+        var rewardTransaction = new Transaction("Sistema", minerAddress, MiningReward);
+        PendingTransactions.Add(rewardTransaction);
 
-        var message = System.Text.Json.JsonSerializer.Serialize(new {Type="RESPONSE_CHAIN", Data=this});
+        // Guardar en disco
+        SaveToFile();
+
+        // Broadcast a todos los nodos
+        var message = JsonSerializer.Serialize(new { Type = "NEW_BLOCK", Data = newBlock });
         await p2pserver.Broadcast(message);
+
+        Console.WriteLine($"📡 Bloque broadcast a {P2PServer.GetConnectedSockets().Count} nodos.");
     }
 
     private void AdjustDifficulty()
     {
-        var lastAdjustmentBlock = Chain.Skip(Chain.Count - DifficultyAdjustmentInterval);
-        long actualTimespan = lastAdjustmentBlock.Sum(b => b.MiningDurationSecond);
-        if(actualTimespan < TargetTimespan / 2)
+        if (Chain.Count < DifficultyAdjustmentInterval + 1) return;
+
+        var lastAdjustmentBlock = Chain[Chain.Count - DifficultyAdjustmentInterval];
+        var currentBlock = GetLatestBlock();
+        
+        long actualTimespan = (long)(currentBlock.Timestamp - lastAdjustmentBlock.Timestamp).TotalSeconds;
+        
+        if (actualTimespan < TargetTimespan / 2)
         {
             Difficulty++;
             Console.WriteLine($"[SISTEMA]: Dificultad incrementada a {Difficulty}.");
         }
-        else if(actualTimespan > TargetTimespan * 2)
+        else if (actualTimespan > TargetTimespan * 2)
         {
-            Difficulty--;
+            Difficulty = Math.Max(1, Difficulty - 1);
             Console.WriteLine($"[SISTEMA]: Dificultad decrementada a {Difficulty}.");
         }
         else
@@ -94,18 +121,30 @@ public class Blockchain
     public decimal GetBalance(string address)
     {
         decimal balance = 0;
-        foreach(Block block in Chain)
+        foreach (Block block in Chain)
         {
-            foreach(Transaction transaction in block.Transactions)
+            foreach (Transaction transaction in block.Transactions)
             {
-                if(transaction.Sender == address)
+                if (transaction.Sender == address)
                 {
                     balance -= transaction.Amount;
                 }
-                if(transaction.Receiver == address)
+                if (transaction.Receiver == address)
                 {
                     balance += transaction.Amount;
                 }
+            }
+        }
+        // También verificar transacciones pendientes
+        foreach (Transaction transaction in PendingTransactions)
+        {
+            if (transaction.Sender == address)
+            {
+                balance -= transaction.Amount;
+            }
+            if (transaction.Receiver == address)
+            {
+                balance += transaction.Amount;
             }
         }
         return balance;
@@ -120,104 +159,155 @@ public class Blockchain
 
     public bool IsValid()
     {
+        if (Chain.Count == 0) return false;
+
         Block genesis = Chain[0];
-        if(genesis.Hash != genesis.CalculateHash() || genesis.PreviousHash != "0") return false;
-        for(int i = 1; i<Chain.Count; i++)
+        if (genesis.Hash != genesis.CalculateHash() || genesis.PreviousHash != "0") 
+            return false;
+
+        for (int i = 1; i < Chain.Count; i++)
         {
             Block currentBlock = Chain[i];
-            Block previousBlock = Chain[i-1];
+            Block previousBlock = Chain[i - 1];
 
-            if(currentBlock.Hash != currentBlock.CalculateHash()) return false;
-            if(currentBlock.PreviousHash != previousBlock.Hash) return false;
+            if (currentBlock.Hash != currentBlock.CalculateHash()) 
+                return false;
+            
+            if (currentBlock.PreviousHash != previousBlock.Hash) 
+                return false;
 
             string target = new string('0', currentBlock.BlockDifficulty);
-            if(currentBlock.Hash.Substring(0, currentBlock.BlockDifficulty) != target)
+            if (currentBlock.Hash.Substring(0, currentBlock.BlockDifficulty) != target)
             {
                 Console.WriteLine($"[ALERTA]: Bloque {currentBlock.Index} no cumple con la dificultad requerida.");
                 return false;
             }
 
-            foreach(Transaction tx in currentBlock.Transactions)
+            foreach (Transaction tx in currentBlock.Transactions)
             {
-                if(!tx.IsValid()) return false;
+                if (!tx.IsValid()) 
+                    return false;
             }
         }
         return true;
     }
 
-    private const string FilePath = "blockchain_data.json";
+    public void ReplaceChain(List<Block> newChain)
+    {
+        if (newChain.Count <= Chain.Count) return;
+        
+        var tempBlockchain = new Blockchain();
+        tempBlockchain.Chain = newChain;
+        
+        if (tempBlockchain.IsValid())
+        {
+            Console.WriteLine($"🔄 Reemplazando cadena local (bloques: {Chain.Count}) por cadena más larga (bloques: {newChain.Count})");
+            Chain = newChain;
+            PendingTransactions.Clear();
+            SaveToFile();
+        }
+        else
+        {
+            Console.WriteLine("❌ Cadena recibida no es válida. No se reemplaza.");
+        }
+    }
 
     public void SaveToFile()
     {
-        try
+        lock (_fileLock)
         {
-            var options = new JsonSerializerOptions
+            try
             {
-                WriteIndented = true,
-                PropertyNameCaseInsensitive = true
-            };
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNameCaseInsensitive = true
+                };
 
-            string jsonString = JsonSerializer.Serialize(this.Chain, options);
-            System.IO.File.WriteAllText("blockchain.json", jsonString);
-            Console.WriteLine("[SISTEMA]: Blockchain guardada exitosamente en 'blockchain.json'.");
-        }
-        catch(Exception ex)
-        {
-            Console.WriteLine($"[ERROR AL GUARDAR]: {ex.Message}");
+                var data = new BlockchainData
+                {
+                    Chain = this.Chain,
+                    PendingTransactions = this.PendingTransactions,
+                    Difficulty = this.Difficulty
+                };
+
+                string jsonString = JsonSerializer.Serialize(data, options);
+                File.WriteAllText(FilePath, jsonString);
+                Console.WriteLine($"[SISTEMA]: Blockchain guardada exitosamente.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR AL GUARDAR]: {ex.Message}");
+            }
         }
     }
 
     public void LoadFromFile()
     {
-        string filePath = "blockchain.json";
-        if (!File.Exists(filePath))
+        if (!File.Exists(FilePath))
         {
-            Console.WriteLine("[SISTEMA]: No se encontró el archivo 'blockchain.json'. Se iniciará una nueva cadena de bloques.");
-            this.Chain = new List<Block>();
-            var genesisTransactions = new List<Transaction>();
-            Block genesisBlock = new Block(0, DateTime.Now, genesisTransactions, "0", this.Difficulty);
-            genesisBlock.MineBlock(this.Difficulty);
-            this.Chain.Add(genesisBlock);
-            this.SaveToFile();
+            Console.WriteLine($"[SISTEMA]: No se encontró archivo. Iniciando nueva cadena.");
+            SaveToFile();
             return;
         }
+
         try
         {
-            Console.WriteLine("[Persistencia] Cargando el historial de bloques desde disco...");
-            string jsonString = File.ReadAllText(filePath);
+            Console.WriteLine("[Persistencia] Cargando blockchain desde disco...");
+            string jsonString = File.ReadAllText(FilePath);
+            
             var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             };
-            var loadedChain = JsonSerializer.Deserialize<List<Block>>(jsonString, options);
-            if (loadedChain != null && loadedChain.Count > 0)
+
+            var data = JsonSerializer.Deserialize<BlockchainData>(jsonString, options);
+            
+            if (data != null && data.Chain != null && data.Chain.Count > 0)
             {
-                this.Chain = loadedChain;
-                Console.Write("[Validación] Ejecutando auditoría exhaustiva de la cadena cargada... ");
+                this.Chain = data.Chain;
+                this.PendingTransactions = data.PendingTransactions ?? new List<Transaction>();
+                this.Difficulty = data.Difficulty;
+
+                Console.Write("[Validación] Verificando integridad de la cadena... ");
                 if (this.IsValid())
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("¡ÉXITO! Historial íntegro, hashes correctos y firmas válidas.");
+                    Console.WriteLine("✅ ¡ÉXITO! Cadena válida.");
                     Console.ResetColor();
-
-                    this.Difficulty = this.GetLatestBlock().BlockDifficulty;
-                    Console.WriteLine($"[SISTEMA]: Dificultad ajustada a {this.Difficulty} según el último bloque cargado.");
                 }
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("¡ALERTA CRÍTICA! El archivo JSON está corrupto o fue manipulado.");
+                    Console.WriteLine("❌ ¡ALERTA! Cadena corrupta. Reiniciando.");
                     Console.ResetColor();
-
-                    throw new System.Security.SecurityException("La cadena de bloques cargada no es válida. Se requiere intervención manual.");
+                    this.Chain = new List<Block>();
+                    this.PendingTransactions = new List<Transaction>();
+                    var genesis = new Block(0, DateTime.Now, new List<Transaction>(), "0", this.Difficulty);
+                    genesis.MineBlock(this.Difficulty);
+                    this.Chain.Add(genesis);
+                    SaveToFile();
                 }
-
             }
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"[Error Inicio] Fallo catastrófico al cargar el archivo: {ex.Message}");
-            Environment.Exit(1);
+            Console.WriteLine($"[Error] Fallo al cargar: {ex.Message}");
+            // Reiniciar con cadena nueva
+            this.Chain = new List<Block>();
+            this.PendingTransactions = new List<Transaction>();
+            var genesis = new Block(0, DateTime.Now, new List<Transaction>(), "0", this.Difficulty);
+            genesis.MineBlock(this.Difficulty);
+            this.Chain.Add(genesis);
+            SaveToFile();
         }
+    }
+
+    // Clase auxiliar para serialización
+    private class BlockchainData
+    {
+        public List<Block> Chain { get; set; } = new List<Block>();
+        public List<Transaction> PendingTransactions { get; set; } = new List<Transaction>();
+        public int Difficulty { get; set; } = 4;
     }
 }

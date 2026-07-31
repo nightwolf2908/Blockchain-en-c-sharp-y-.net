@@ -15,6 +15,18 @@ public class PostLoginMenu
         _usuarioSesion = usuarioSesion;
         _blockchain = blockchain;
         _p2pServer = p2pServer;
+
+        Console.WriteLine("Cargando blockchain...");
+        _blockchain.LoadFromFile(); // Método sincrónico con mensajes
+        Console.WriteLine("✅ Blockchain cargada.");
+        Console.WriteLine("Presiona una tecla para continuar...");
+        Console.ReadKey();
+
+    }
+
+    private void GuardarBlockchain()
+    {
+        _blockchain.SaveToFile();
     }
 
 
@@ -159,14 +171,14 @@ public class PostLoginMenu
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine($"\nPreparando envío de {monto} monedas hacia la wallet destino...");
             Console.ResetColor();
-
-            string privateKeyHex = _usuarioSesion.PrivateKey;
+            try{
             Transaction nuevaTransaccion = new Transaction(_usuarioSesion.PublicKey, destino, (decimal)monto);
-            using (var ecdsa = ECDsa.Create())
-            {
-                ecdsa.ImportPkcs8PrivateKey(Convert.FromBase64String(privateKeyHex), out _);
-                nuevaTransaccion.SignTransaction(ecdsa);
-            }
+            byte[] privateKeyBytes = Convert.FromBase64String(_usuarioSesion.PrivateKey);
+            using(ECDsa ecdsa = ECDsa.Create())
+                {
+                    ecdsa.ImportPkcs8PrivateKey(privateKeyBytes, out _);
+                    nuevaTransaccion.SignTransaction(ecdsa);
+                }
 
             if (nuevaTransaccion.IsValid())
             {
@@ -179,6 +191,13 @@ public class PostLoginMenu
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("\n[Error] La transacción no es válida. Verifica los datos e intenta nuevamente.");
+                Console.ResetColor();
+            }
+            }
+            catch(Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\n[Error] Ocurrió un problema al crear o firmar la transacción: {ex.Message}");
                 Console.ResetColor();
             }
         }
@@ -225,6 +244,8 @@ public class PostLoginMenu
         Console.WriteLine("\nResolviendo el acertijo criptográfico Proof of Work...");
 
         _blockchain.MinePendingTransactions(_usuarioSesion.PublicKey, _p2pServer).GetAwaiter().GetResult();
+
+        GuardarBlockchain();
 
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("\n¡Bloque minado con éxito! Recompensa asignada a tu Wallet.");
