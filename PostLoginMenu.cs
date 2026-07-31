@@ -1,10 +1,13 @@
 using System;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
+using Microsoft.Data.SqlClient;
 
 public class PostLoginMenu
 {
     private readonly UsuarioSesion _usuarioSesion;
     private readonly Blockchain _blockchain;
+    private readonly string _connectionStringBlockchain = "Server=localhost,1433;Database=BlockchainAuth;User Id=sa;Password=MiContraseñaSegura123!;Encrypt=False;";
     public PostLoginMenu(UsuarioSesion usuarioSesion, Blockchain blockchain)
     {
         _usuarioSesion = usuarioSesion;
@@ -91,20 +94,92 @@ public class PostLoginMenu
         Console.ReadKey();
     }
 
-    private void EnviarTransaccion()
+    public bool WalletExists(string publicKey)
+    {
+        try
+        {
+            using(SqlConnection connection = new SqlConnection(_connectionStringBlockchain))
+            {
+                connection.Open();
+                using(SqlCommand command = new SqlCommand("SELECT COUNT(*) FROM Usuarios WHERE PublicKey = @PublicKey", connection))
+                {
+                    command.Parameters.AddWithValue("@PublicKey", publicKey);
+                    int count = (int)command.ExecuteScalar();
+                    return count > 0;
+                }
+            }
+        }
+        catch(Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n[Error DB Validación] No se pudo verificar la Wallet: {ex.Message}");
+            Console.ResetColor();
+            return false;
+        }
+    }
+
+    private async Task EnviarTransaccion()
     {
         Console.Clear();
         Console.WriteLine("--- ENVIAR NUEVA TRANSACCIÓN ---");
         Console.Write("Introduce la dirección de la Wallet destino (Llave Pública): ");
         string destino = Console.ReadLine();
+        Console.Write("Verficando que exista la Wallet destino en la Blockchain... ");
+        await Task.Delay(1000);
+        if (!WalletExists(destino))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\n[Error] La Wallet destino no existe en la Blockchain. Verifica la dirección.");
+            Console.ResetColor();
+            Console.WriteLine("\nPresiona cualquier tecla para volver...");
+            Console.ReadKey();
+            return;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("\n[ÉXITO] Wallet destino verificada en la Blockchain.");
+            Console.ResetColor();
+        }
         Console.Write("Introduce la cantidad a enviar: ");
 
-        if (double.TryParse(Console.ReadLine(), out double monto))
+        if (decimal.TryParse(Console.ReadLine(), out decimal monto))
         {
             // TODO: Aquí enlazaremos la Fase 2 (Importar tu llave privada, crear la Tx, firmarla y agregarla)
+            if(monto <= 0 || monto > (decimal)_blockchain.GetBalance(_usuarioSesion.PublicKey))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("\nMonto inválido o insuficiente balance.");
+                Console.ResetColor();
+                Console.WriteLine("\nPresiona cualquier tecla para volver...");
+                Console.ReadKey();
+                return;
+            }
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"\n[Fase 2] Preparando envío de {monto} monedas hacia la wallet destino...");
+            Console.WriteLine($"\nPreparando envío de {monto} monedas hacia la wallet destino...");
             Console.ResetColor();
+
+            string privateKeyHex = _usuarioSesion.PrivateKey;
+            Transaction nuevaTransaccion = new Transaction(_usuarioSesion.PublicKey, destino, (decimal)monto);
+            using (var ecdsa = ECDsa.Create())
+            {
+                ecdsa.ImportPkcs8PrivateKey(Convert.FromBase64String(privateKeyHex), out _);
+                nuevaTransaccion.SignTransaction(ecdsa);
+            }
+
+            if (nuevaTransaccion.IsValid())
+            {
+                _blockchain.CreateTransaction(nuevaTransaccion);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("\n¡Transacción creada y firmada con éxito! Ahora puedes minar para incluirla en un bloque.");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("\n[Error] La transacción no es válida. Verifica los datos e intenta nuevamente.");
+                Console.ResetColor();
+            }
         }
         else
         {

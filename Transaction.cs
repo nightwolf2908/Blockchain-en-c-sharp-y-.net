@@ -29,9 +29,9 @@ public class Transaction
     {
         if(Sender == "Sistema") return;
 
-        string publicKeyHex = Convert.ToHexString(privateKey.ExportSubjectPublicKeyInfo());
+        string publicKey = Convert.ToHexString(privateKey.ExportSubjectPublicKeyInfo());
 
-        if(publicKeyHex != Sender)
+        if(publicKey != Sender)
         {
             throw new InvalidOperationException("No puedes firmar transacciones para otras billeteras.");
         }
