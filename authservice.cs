@@ -66,7 +66,7 @@ public class AuthService
 
             UsuarioSesion usuarioSesion = new UsuarioSesion().ObtenerDatosSesion(email);
             // Aquí puedes agregar la lógica para continuar con el flujo del programa después del inicio de sesión exitoso.
-            PostLoginMenu postLoginMenu = new PostLoginMenu(usuarioSesion, blockchain: new Blockchain());
+            PostLoginMenu postLoginMenu = new PostLoginMenu(usuarioSesion, blockchain: new Blockchain(), p2pServer: new P2PServer(new Blockchain()));
             postLoginMenu.Mostrar();
         }
         else

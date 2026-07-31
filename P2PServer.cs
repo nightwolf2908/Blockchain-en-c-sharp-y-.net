@@ -5,6 +5,7 @@ public class P2PServer
 {
     private readonly Blockchain _blockchain;
     private static readonly List<WebSocket> _sockets = new();
+    private static readonly Dictionary<WebSocket, string> _nodeIdentifiers = new();
 
     public P2PServer(Blockchain blockchain)
     {
@@ -17,7 +18,10 @@ public class P2PServer
         {
             using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
             _sockets.Add(webSocket);
-            Console.WriteLine("[P2P] Nuevo nodo conectado (Servidor).");
+
+            var nodeId = $"{context.Connection.RemoteIpAddress}:{context.Connection.RemotePort}";
+            _nodeIdentifiers[webSocket] = nodeId;
+            Console.WriteLine("[P2P] Nuevo nodo conectado (Servidor): " + nodeId);
 
             await Listen(webSocket);
         }
@@ -36,8 +40,8 @@ public class P2PServer
             if(result.MessageType == WebSocketMessageType.Text)
             {
                 var message = Encoding.UTF8.GetString(buffer,0,result.Count);
-                Console.WriteLine($"[P2P] Mensaje recibido: {message}");
-
+                Console.WriteLine($"[P2P] Mensaje recibido de {_nodeIdentifiers[socket]}: {message}");
+                // Aquí puedes manejar el mensaje recibido, por ejemplo, procesar transacciones o bloques.
             }
             else if(result.MessageType == WebSocketMessageType.Close)
             {
@@ -58,5 +62,14 @@ public class P2PServer
                 await socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
             }
         }
+    }
+
+    public static List<WebSocket> GetConnectedSockets()
+    {
+        return _sockets.ToList();
+    }
+    public static Dictionary<WebSocket,string> GetNodeIdentifiers()
+    {
+        return _nodeIdentifiers.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
 }

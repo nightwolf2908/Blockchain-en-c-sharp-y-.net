@@ -7,7 +7,7 @@ public class Blockchain
 {
     public List<Block> Chain {get; set;}
     public List<Transaction> PendingTransactions {get; set;}
-    public int Difficulty {get; set;} = 2;
+    public int Difficulty {get; set;} = 4;
     public decimal MiningReward {get; set;} = 10;
     private const int DifficultyAdjustmentInterval = 5;
     private const int TargetTimePerBlockSeconds = 10;
@@ -52,7 +52,7 @@ public class Blockchain
 
         Console.WriteLine($"\nIniciando minado de un nuevo bloque con {PendingTransactions.Count} transacciones...");
 
-        Block newBlock = new Block(Chain.Count,DateTime.Now, new List<Transaction>(PendingTransactions), GetLatestBlock().Hash,this.Difficulty);
+        Block newBlock = new Block(Chain.Count,DateTime.Now, new List<Transaction>(PendingTransactions), GetLatestBlock().Hash, Difficulty);
         newBlock.MineBlock(Difficulty);
         Chain.Add(newBlock);
 

@@ -2,16 +2,19 @@ using System;
 using System.Threading.Tasks;
 using System.Security.Cryptography;
 using Microsoft.Data.SqlClient;
+using System.Net.WebSockets;
 
 public class PostLoginMenu
 {
     private readonly UsuarioSesion _usuarioSesion;
     private readonly Blockchain _blockchain;
+    private readonly P2PServer _p2pServer;
     private readonly string _connectionStringBlockchain = "Server=localhost,1433;Database=BlockchainAuth;User Id=sa;Password=MiContraseñaSegura123!;Encrypt=False;";
-    public PostLoginMenu(UsuarioSesion usuarioSesion, Blockchain blockchain)
+    public PostLoginMenu(UsuarioSesion usuarioSesion, Blockchain blockchain, P2PServer p2pServer)
     {
         _usuarioSesion = usuarioSesion;
         _blockchain = blockchain;
+        _p2pServer = p2pServer;
     }
 
 
@@ -131,8 +134,6 @@ public class PostLoginMenu
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("\n[Error] La Wallet destino no existe en la Blockchain. Verifica la dirección.");
             Console.ResetColor();
-            Console.WriteLine("\nPresiona cualquier tecla para volver...");
-            Console.ReadKey();
             return;
         }
         else
@@ -223,9 +224,7 @@ public class PostLoginMenu
         Console.WriteLine("--- EMPEZAR PROCESO DE MINADO ---");
         Console.WriteLine("\nResolviendo el acertijo criptográfico Proof of Work...");
 
-        // TODO: En la Fase 2 pasaremos también el p2pServer aquí. Por ahora llamamos al método básico.
-        // Se le pasa la dirección del usuario actual para recibir la recompensa por minar.
-        // Ajusta el nombre de tu método si cambia alguna letra.
+        _blockchain.MinePendingTransactions(_usuarioSesion.PublicKey, _p2pServer).GetAwaiter().GetResult();
 
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("\n¡Bloque minado con éxito! Recompensa asignada a tu Wallet.");
@@ -238,12 +237,81 @@ public class PostLoginMenu
     {
         Console.Clear();
         Console.WriteLine("--- NODOS P2P CONECTADOS ---");
+        Console.WriteLine($"Total de nodos conectados: {P2PServer.GetConnectedSockets().Count}");
+        Console.WriteLine(new string('-', 40));
+
+        var sockets = P2PServer.GetConnectedSockets();
+        var identifiers = P2PServer.GetNodeIdentifiers();
+
+        if(sockets.Count == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("\nNo hay nodos P2P conectados actualmente.");
+            Console.ResetColor();
+        }
+        else
+        {
+            int index = 1;
+            foreach(var socket in sockets)
+            {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine($"\nNodo #{index}:");
+                Console.ResetColor();
+
+                if(identifiers.TryGetValue(socket,out var nodeId))
+                {
+                    Console.WriteLine($"  ID: {nodeId}");
+                }
+
+                Console.WriteLine($"  Estado: {socket.State}");
+                Console.WriteLine($"  Conexión: {(socket.State == WebSocketState.Open ? "🟢 Activa" : "🔴 Cerrada")}");
+                index++;
+            }
+        }
+        Console.WriteLine("\n" + new string('-', 40));
+        Console.WriteLine("Presiona una tecla para continuar...");
+        Console.ReadKey();
     }
 
     private void ConectarseAServidorP2P()
     {
         Console.Clear();
         Console.WriteLine("--- CONECTARSE A UN NODO P2P ---");
+        Console.WriteLine("\nIngresa la URL del nodo al que deseas conectarte:");
+        Console.WriteLine("Ejemplo: ws://localhost:5000/ws");
+        Console.Write("\nURL: ");
+
+        string url = Console.ReadLine()?.Trim();
+
+        if (string.IsNullOrEmpty(url))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\n❌ URL no válida. Operación cancelada.");
+            Console.ResetColor();
+            Console.WriteLine("\nPresiona una tecla para continuar...");
+            Console.ReadKey();
+            return;
+        }
+
+        try
+        {
+            Console.WriteLine($"\nConectando a {url}...");
+            P2PClient p2pClient = new P2PClient(_blockchain);
+            p2pClient.ConnectToPeer(url).GetAwaiter().GetResult();
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("\n✅ Conexión exitosa al nodo P2P.");
+            Console.ResetColor();
+        }
+        catch(Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n❌ Error al conectarse al nodo P2P: {ex.Message}");
+            Console.ResetColor();
+        }
+        Console.WriteLine("\nPresiona una tecla para continuar...");
+        Console.ReadKey();
+
     }
 }
 
