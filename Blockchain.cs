@@ -51,11 +51,6 @@ public class Blockchain
 
     public async Task MinePendingTransactions(string minerAddress, P2PServer p2pserver)
     {
-        if (PendingTransactions.Count == 0)
-        {
-            Console.WriteLine("⚠️ No hay transacciones pendientes para minar.");
-            return;
-        }
 
         Console.WriteLine($"\n⛏️ Iniciando minado de un nuevo bloque con {PendingTransactions.Count} transacciones...");
 
@@ -233,7 +228,6 @@ public class Blockchain
 
                 string jsonString = JsonSerializer.Serialize(data, options);
                 File.WriteAllText(FilePath, jsonString);
-                Console.WriteLine($"[SISTEMA]: Blockchain guardada exitosamente.");
             }
             catch (Exception ex)
             {
@@ -253,7 +247,7 @@ public class Blockchain
 
         try
         {
-            Console.WriteLine("[Persistencia] Cargando blockchain desde disco...");
+            Console.WriteLine("\n[Persistencia] Cargando blockchain desde disco...");
             string jsonString = File.ReadAllText(FilePath);
             
             var options = new JsonSerializerOptions
@@ -269,7 +263,7 @@ public class Blockchain
                 this.PendingTransactions = data.PendingTransactions ?? new List<Transaction>();
                 this.Difficulty = data.Difficulty;
 
-                Console.Write("[Validación] Verificando integridad de la cadena... ");
+                Console.Write("\n[Validación] Verificando integridad de la cadena... ");
                 if (this.IsValid())
                 {
                     Console.ForegroundColor = ConsoleColor.Green;

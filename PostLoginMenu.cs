@@ -16,10 +16,10 @@ public class PostLoginMenu
         _blockchain = blockchain;
         _p2pServer = p2pServer;
 
-        Console.WriteLine("Cargando blockchain...");
+        Console.WriteLine("\nCargando blockchain...");
         _blockchain.LoadFromFile(); // Método sincrónico con mensajes
-        Console.WriteLine("✅ Blockchain cargada.");
-        Console.WriteLine("Presiona una tecla para continuar...");
+        Console.WriteLine("\n✅ Blockchain cargada.");
+        Console.WriteLine("\nPresiona una tecla para continuar...");
         Console.ReadKey();
 
     }

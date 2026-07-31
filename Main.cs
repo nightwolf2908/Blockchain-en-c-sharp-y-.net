@@ -6,10 +6,6 @@ class Program
     static async Task Main(string[] args)
     {
         int port = args.Length > 0 ? int.Parse(args[0]) : 5000;
-        
-        Console.WriteLine($"🚀 Iniciando Nodo Blockchain en puerto {port}");
-        Console.WriteLine($"🌐 P2P URL: ws://localhost:{port}/ws");
-        Console.WriteLine("========================================\n");
 
         // Crear AuthService que maneja blockchain y p2pserver
         var authService = new AuthService(port);
@@ -26,7 +22,7 @@ class Program
 
         // Guardar al salir
         authService.GetBlockchain().SaveToFile();
-        Console.WriteLine("👋 ¡Hasta luego!");
+    
     }
 
     static async Task StartP2PServer(P2PServer p2pserver, int port)

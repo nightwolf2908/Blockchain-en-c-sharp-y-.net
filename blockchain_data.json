@@ -9,8 +9,42 @@
       "Nonce": 151852,
       "MiningDurationSecond": 1,
       "BlockDifficulty": 4
+    },
+    {
+      "Index": 1,
+      "Timestamp": "2026-07-31T12:48:16.8914478-06:00",
+      "PreviousHash": "0000625e1356e29bc677c470f5a86e94d51b851f88b06713359c849b92781d70",
+      "Hash": "00002d618fc8b95e191a40019c91a13b60d1690d28b12fd3aebfb3b992af3e1a",
+      "Transactions": [],
+      "Nonce": 11618,
+      "MiningDurationSecond": 1,
+      "BlockDifficulty": 4
+    },
+    {
+      "Index": 2,
+      "Timestamp": "2026-07-31T12:48:25.1103851-06:00",
+      "PreviousHash": "00002d618fc8b95e191a40019c91a13b60d1690d28b12fd3aebfb3b992af3e1a",
+      "Hash": "00003b40bab3670f176b48063a1f8e936d136f287bbf76f9d27c8fa0c2de272d",
+      "Transactions": [
+        {
+          "Sender": "Sistema",
+          "Receiver": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc2F/A4DSu4rBNBMYHIevS0/S5GCvgRlM0hjJAYzg3b4j3QZ2L0aaPDHcq7gqEG/QHgvrblX04MX8FM/gDQwMTQ==",
+          "Amount": 10,
+          "Signature": null
+        }
+      ],
+      "Nonce": 332355,
+      "MiningDurationSecond": 1,
+      "BlockDifficulty": 4
     }
   ],
-  "PendingTransactions": [],
+  "PendingTransactions": [
+    {
+      "Sender": "Sistema",
+      "Receiver": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc2F/A4DSu4rBNBMYHIevS0/S5GCvgRlM0hjJAYzg3b4j3QZ2L0aaPDHcq7gqEG/QHgvrblX04MX8FM/gDQwMTQ==",
+      "Amount": 10,
+      "Signature": null
+    }
+  ],
   "Difficulty": 4
 }

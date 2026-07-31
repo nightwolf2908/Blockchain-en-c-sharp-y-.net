@@ -77,7 +77,7 @@ public class AuthService
         if (loginExitoso)
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("\n✅ ¡Acceso concedido! Bienvenido al Nodo Blockchain.");
+            Console.Write("\n✅ ¡Acceso concedido! Bienvenido al Nodo Blockchain. Presiona cualquier tecla para continuar...");
             Console.ReadKey();
             Console.ResetColor();
 
