@@ -83,7 +83,7 @@ public class Blockchain
 
         // Broadcast a todos los nodos
         var message = JsonSerializer.Serialize(new { Type = "NEW_BLOCK", Data = newBlock });
-        await p2pserver.Broadcast(message);
+        await p2pserver.BroadcastMessage(message);
 
         Console.WriteLine($"📡 Bloque broadcast a {P2PServer.GetConnectedSockets().Count} nodos.");
     }

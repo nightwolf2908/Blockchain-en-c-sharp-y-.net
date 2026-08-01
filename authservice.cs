@@ -14,7 +14,7 @@ public class AuthService
         _p2pPort = p2pPort;
         _blockchain = new Blockchain();
         _blockchain.LoadFromFile(); // Cargar blockchain existente
-        _p2pServer = new P2PServer(_blockchain);
+        _p2pServer = new P2PServer();
     }
 
     public Blockchain GetBlockchain() => _blockchain;

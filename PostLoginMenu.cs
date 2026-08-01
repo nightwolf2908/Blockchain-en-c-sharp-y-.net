@@ -253,7 +253,7 @@ public class PostLoginMenu
         Console.WriteLine("\nPresiona una tecla para continuar...");
         Console.ReadKey();
     }
-
+    
     private void VerNodosConectados()
     {
         Console.Clear();
@@ -293,6 +293,7 @@ public class PostLoginMenu
         Console.WriteLine("Presiona una tecla para continuar...");
         Console.ReadKey();
     }
+
 
     private void ConectarseAServidorP2P()
     {
